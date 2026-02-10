@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="./jquery-3.6.0.min.js">
+    </script>
+    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js">
+    </script>
+    <script>
+      function getUrlParam(name) {
+            const reg = new RegExp(`(^|&amp;)${name}=([^&amp;]*)(&amp;|$)`);
+            const r = window.location.search.substr(1).match(reg);
+            if (r != null) return decodeURIComponent(r[2]);
+            return null;
+        }
+
+        const stParam = getUrlParam(&#39;st&#39;);
+        let pixelId = &#39;&#39;;
+
+        switch (stParam) {
+            case &#39;fb&#39;:
+                pixelId = &#39;745479437925101&#39;;
+                break;
+            case &#39;fb-yingda&#39;:
+                pixelId = &#39;1127653402550769&#39;;
+                break;
+            case &#39;fb-youjin&#39;:
+                pixelId = &#39;3260549020775281&#39;;
+                break;
+            default:
+                pixelId = &#39;&#39;;
+        }
+
+        ! function (f, b, e, v, n, t, s) {
+            if (f.fbq) return;
+            n = f.fbq = function () {
+                n.callMethod ?
+                    n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+            };
+            if (!f._fbq) f._fbq = n;
+            n.push = n;
+            n.loaded = !0;
+            n.version = &#39;2.0&#39;;
+            n.queue = [];
+            t = b.createElement(e);
+            t.async = !0;
+            t.src = v;
+            s = b.getElementsByTagName(e)[0];
+            s.parentNode.insertBefore(t, s)
+        }(window, document, &#39;script&#39;,
+            &#39;https://connect.facebook.net/en_US/fbevents.js&#39;);
+
+        fbq(&#39;init&#39;, pixelId);
+        fbq(&#39;track&#39;, &#39;PageView&#39;);
+    </script>
+    <title>
+      Jaipay
+    </title>
+    <style>
+      * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+        }
+
+        .background-image {
+            position: absolute;
+            width: 100%;
+        }
+
+        .download-container {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .download-button {
+            width: 90%;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .download-button {
+                animation: pulse 2s infinite;
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .download-button:active {
+            transform: scale(0.95);
+        }
+
+        .page-box {
+            width: 100%;
+            background: #f0f0f0;
+        }
+
+        .page-image {
+            width: 100%;
+        }
+
+        .download-btn {
+            position: absolute;
+            bottom: 8%;
+            left: 5%;
+            width: 90%;
+            height: 9%;
+            background-color: #fff;
+            border-radius: 20%;
+            opacity: 0;
+        }
+    </style>
+  </head>
+  <body>
+    <div class="page-box">
+      <img class="page-image" src="./file_00000000b60071faaa7e34edcb9da2f4.png" alt="Background" />
+    </div>
+    <div class="download-container">
+      <img class="download-button" onclick="openApp()" src="./Download.png" alt="Download App" />
+    </div>
+    <script>
+      var downloadLink = &#39;&#39;;
+        var isForceDownload = false;
+
+        window.onload = async function () {
+            downloadLink = await getAppDownloadLink();
+        }
+
+        function openApp() {
+            fbq(&#39;track&#39;, &#39;LinkClick&#39;, {
+                content_name: &#39;Jaipay&#39;,
+                content_category: &#39;LinkClick&#39;,
+            });
+
+            copyUrl();
+
+            const appLink = `jaipay://link?url=https://app.aapay.in`;
+
+            const iframe = document.createElement(&#39;iframe&#39;);
+            iframe.src = appLink;
+            document.body.appendChild(iframe);
+
+            let appOpened = false;
+            document.addEventListener(&#39;visibilitychange&#39;, () =&gt; {
+                if (document.hidden) appOpened = true;
+            });
+            window.addEventListener(&#39;blur&#39;, () =&gt; {
+                appOpened = true;
+            });
+
+            setTimeout(() =&gt; {
+                if (!appOpened) {
+                    downloadApkWithProgress();
+                } else {
+                    fbq(&#39;track&#39;, &#39;AppOpened&#39;, {
+                        content_name: &#39;Jaipay&#39;,
+                        content_category: &#39;AppOpened&#39;,
+                    });
+
+                    window.location.href = appLink;
+                }
+
+                iframe.remove();
+            }, 1000);
+        }
+
+        async function getAppDownloadLink() {
+            try {
+                const response = await $.ajax({
+                    url: &#39;/pay/home/getAppDownloadLink&#39;,
+                    type: &#39;POST&#39;,
+                    dataType: &#39;json&#39;,
+                    contentType: &#39;application/json&#39;,
+                    async: false
+                });
+
+                if (response.code === 0 &amp;&amp; response.data) {
+                    if (isForceDownload) {
+                        downloadApkWithProgress(response.data);
+                    }
+                    return response.data;
+                } else {
+                    console.error(&#39;Failed to fetch download link:&#39;, response.msg || &#39;Unknown error&#39;);
+                    return null;
+                }
+            } catch (error) {
+                console.error(&#39;Error fetching download link:&#39;, error);
+                return null;
+            }
+        }
+
+        async function downloadApkWithProgress(progressBar) {
+            if (downloadLink) {
+                window.location.href = downloadLink;
+            } else {
+                window.location.href = &#34;https://page.aapay.in/apk/Jaipay-online-1.0.5.apk&#34;;
+            }
+        }
+
+        function copyUrl() {
+            var url = window.location.href;
+            if (navigator &amp;&amp; navigator.clipboard &amp;&amp; typeof navigator.clipboard.writeText === &#39;function&#39;) {
+                navigator.clipboard.writeText(url);
+            } else {
+                const t = document.createElement(&#39;textarea&#39;);
+                t.value = url;
+                t.style.position = &#39;fixed&#39;;
+                t.style.left = &#39;-9999px&#39;;
+                document.body.appendChild(t);
+                t.select();
+                t.setSelectionRange(0, url.length);
+                document.execCommand(&#39;copy&#39;);
+                document.body.removeChild(t);
+            }
+        }
+    </script>
+    <script defer="" src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon="{&#34;version&#34;:&#34;2024.11.0&#34;,&#34;token&#34;:&#34;55ca17fb42e14eba999e663c61ef946a&#34;,&#34;r&#34;:1,&#34;server_timing&#34;:{&#34;name&#34;:{&#34;cfCacheStatus&#34;:true,&#34;cfEdge&#34;:true,&#34;cfExtPri&#34;:true,&#34;cfL4&#34;:true,&#34;cfOrigin&#34;:true,&#34;cfSpeedBrain&#34;:true},&#34;location_startswith&#34;:null}}" crossorigin="anonymous">
+    </script>
+  </body>
+</html>
